@@ -1,24 +1,24 @@
 
-  # Python-generated files
-  __pycache__/ 
-  *.py[oc]
-  build/
-  dist/
-  wheels/
-  *.egg-info
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
 
-  # Virtual environments
-  .venv
-  .env
+# Virtual environments
+.venv
+.env
 
-  # OS
-  .DS_Store
+# OS
+.DS_Store
   
-  # IDE
-  .idea/
+# IDE
+.idea/
 
-  # Docker
-  *.log
+# Docker
+*.log
 
-  # uv
-  .python-version
+# uv
+.python-version
