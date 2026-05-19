@@ -1,0 +1,16 @@
+.venv
+.git
+.github
+.idea
+.env
+.ruff_cache
+__pycache__
+*.py[oc]
+*.log
+.DS_Store
+frontend
+README.md
+docker-compose.yml
+Makefile
+scripts/
+*.md

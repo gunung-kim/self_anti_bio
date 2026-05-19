@@ -22,3 +22,5 @@ wheels/
 
 # uv
 .python-version
+
+.ruff_cache
