@@ -1,0 +1,268 @@
+  <!DOCTYPE html>
+  <html lang="ko">
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>대장균 항생제 시뮬레이터</title>
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: sans-serif; background: #f5f5f5; padding: 20px; }
+          h1 { text-align: center; margin-bottom: 20px; color: #333; }
+          .container { max-width: 900px; margin: 0 auto; }
+          .form-box {
+              background: white; padding: 24px; border-radius: 12px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 24px;
+          }
+          .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+          .form-group { display: flex; flex-direction: column; gap: 6px; }
+          label { font-size: 14px; color: #555; font-weight: 600; }
+          input {
+              padding: 10px; border: 1px solid #ddd; border-radius: 8px;
+              font-size: 14px; outline: none;
+          }
+          input:focus { border-color: #4a90e2; }
+          .btn-group { display: flex; gap: 12px; margin-top: 20px; }
+          button {
+              flex: 1; padding: 12px; border: none; border-radius: 8px;
+              font-size: 15px; font-weight: 600; cursor: pointer; color: white;
+          }
+          #btn-hill { background: #4a90e2; }
+          #btn-hill:hover { background: #357abd; }
+          #btn-gemini { background: #e67e22; }
+          #btn-gemini:hover { background: #ca6f1e; }
+          #btn-ws { background: #27ae60; }
+          #btn-ws:hover { background: #1e8449; }
+          .chart-box {
+              background: white; padding: 24px; border-radius: 12px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 24px;
+          }
+          .chart-box h2 { margin-bottom: 16px; color: #333; font-size: 16px; }
+          .result-box {
+              background: white; padding: 24px; border-radius: 12px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          }
+          .result-box h2 { margin-bottom: 12px; color: #333; font-size: 16px; }
+          pre {
+              background: #f8f8f8; padding: 16px; border-radius: 8px;
+              font-size: 13px; white-space: pre-wrap; word-break: break-all;
+          }
+          .status { margin-top: 10px; font-size: 13px; color: #888; }
+      </style>
+  </head>
+  <body>
+  <h1>대장균 항생제 시뮬레이터</h1>
+  <div class="container">
+
+      <div class="form-box">
+          <div class="form-grid">
+              <div class="form-group">
+                  <label>항생제 이름</label>
+                  <input id="antibiotic_name" value="Ciprofloxacin">
+              </div>
+              <div class="form-group">
+                  <label>CHEMBL ID</label>
+                  <input id="molecule_chembl_id" value="CHEMBL8">
+              </div>
+              <div class="form-group">
+                  <label>투여 농도 (ug/mL)</label>
+                  <input id="concentration" type="number" value="1.0" step="0.1">
+              </div>
+              <div class="form-group">
+                  <label>온도 (°C)</label>
+                  <input id="temperature" type="number" value="37">
+              </div>
+              <div class="form-group">
+                  <label>pH</label>
+                  <input id="environment_ph" type="number" value="7.0" step="0.1">
+              </div>
+              <div class="form-group">
+                  <label>대장균 균주</label>
+                  <input id="ecoli_strain" value="K-12">
+              </div>
+              <div class="form-group">
+                  <label>시뮬레이션 기간 (일)</label>
+                  <input id="days" type="number" value="30">
+              </div>  
+              <div class="form-group">
+                  <label>내성 증가율 (0.1 = 10%/일)</label>
+                  <input id="resistance_rate" type="number" value="0.1" step="0.01">
+              </div>
+          </div>
+          <div class="btn-group">
+              <button id="btn-hill" onclick="runHill()">Hill 곡선 분석</button>
+              <button id="btn-gemini" onclick="runGemini()">Gemini 내성 분석</button>
+              <button id="btn-ws" onclick="runWebSocket()">시계열 시뮬레이션</button>
+          </div>
+          <div class="status" id="status"></div>
+      </div>
+
+      <div class="chart-box">
+          <h2>Hill 곡선 (농도 vs 생존률)</h2>
+          <canvas id="hillChart"></canvas>
+      </div>
+
+      <div class="chart-box">
+          <h2>시계열 시뮬레이션 (날짜 vs 생존률)</h2>
+          <canvas id="timeChart"></canvas>
+      </div>
+
+      <div class="result-box">
+          <h2>Gemini 내성 분석</h2>
+          <pre id="resistance_result">분석 결과가 여기에 표시됩니다.</pre>
+      </div>
+  
+  </div>
+
+  <script>
+      const API = "http://localhost:8000";
+      let hillChart, timeChart;
+  
+      function getInputs() {
+          return {
+              antibiotic_name: document.getElementById("antibiotic_name").value,
+              molecule_chembl_id: document.getElementById("molecule_chembl_id").value,
+              concentration: parseFloat(document.getElementById("concentration").value),
+              temperature: parseFloat(document.getElementById("temperature").value),
+              environment_ph: parseFloat(document.getElementById("environment_ph").value),
+              ecoli_strain: document.getElementById("ecoli_strain").value,
+          };
+      }
+  
+      function setStatus(msg) {
+          document.getElementById("status").textContent = msg;
+      }
+
+      async function runHill() {
+          setStatus("Hill 곡선 계산 중...");
+          const inputs = getInputs();
+          try {
+              const res = await fetch(`${API}/simulation/run`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(inputs)
+              });
+              const data = await res.json();
+              const mic = data.mic_value;
+              const labels = [];
+              const values = [];
+              for (let i = -2; i <= 2; i += 0.1) {
+                  const c = mic * Math.pow(10, i);
+                  const survival = 1 / (1 + Math.pow(c / mic, 1));
+                  labels.push((c / mic).toFixed(2) + "x");
+                  values.push(survival.toFixed(4));
+              }
+              drawHillChart(labels, values, inputs.concentration, mic);
+              setStatus(`MIC: ${data.mic_value.toFixed(2)} ug/mL | 생존률: ${(data.survival_rate * 100).toFixed(1)}%`);
+          } catch (e) {
+              setStatus("오류: " + e.message);
+          } 
+      }
+
+      async function runGemini() {
+          setStatus("Gemini 분석 중...");
+          const inputs = getInputs();
+          try {
+              const res = await fetch(`${API}/simulation/run`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(inputs)
+              });     
+              const data = await res.json();
+              document.getElementById("resistance_result").textContent = data.resistance_analysis;
+              setStatus("Gemini 분석 완료");
+          } catch (e) {
+              setStatus("오류: " + e.message);
+          }
+      }
+
+      function drawHillChart(labels, values, concentration, mic) {
+          if (hillChart) hillChart.destroy();
+          const ctx = document.getElementById("hillChart").getContext("2d");
+          hillChart = new Chart(ctx, {
+              type: "line",
+              data: {
+                  labels,
+                  datasets: [{
+                      label: "생존률",
+                      data: values,
+                      borderColor: "#4a90e2",
+                      backgroundColor: "rgba(74,144,226,0.1)",
+                      fill: true,
+                      tension: 0.4,
+                      pointRadius: 0,
+                  }]  
+              },
+              options: {
+                  plugins: { legend: { display: true } },
+                  scales: {
+                      x: { title: { display: true, text: "MIC 대비 농도 배율" } },
+                      y: { title: { display: true, text: "생존률" }, min: 0, max: 1 }
+                  }
+              }
+          });
+      }
+
+      function runWebSocket() {
+          const inputs = getInputs();
+          const days = parseInt(document.getElementById("days").value);
+          const resistance_rate = parseFloat(document.getElementById("resistance_rate").value);
+
+          const wsLabels = [];
+          const wsValues = []; 
+
+          if (timeChart) timeChart.destroy();
+          const ctx = document.getElementById("timeChart").getContext("2d");
+          timeChart = new Chart(ctx, {
+              type: "line",
+              data: {
+                  labels: wsLabels,
+                  datasets: [{
+                      label: "생존률",
+                      data: wsValues,
+                      borderColor: "#27ae60",
+                      backgroundColor: "rgba(39,174,96,0.1)",
+                      fill: true,
+                      tension: 0.4,
+                      pointRadius: 2,
+                  }]
+              },
+              options: {
+                  animation: false,
+                  plugins: { legend: { display: true } },
+                  scales: {
+                      x: { title: { display: true, text: "날짜 (일)" } },
+                      y: { title: { display: true, text: "생존률" }, min: 0, max: 1 }
+                  }
+              }
+          });
+
+          const ws = new WebSocket(`ws://localhost:8000/ws/simulation`);
+
+          ws.onopen = () => {
+              setStatus("WebSocket 연결됨, 시뮬레이션 중...");
+              ws.send(JSON.stringify({
+                  molecule_chembl_id: inputs.molecule_chembl_id,
+                  concentration: inputs.concentration,
+                  days,
+                  resistance_rate
+              }));
+          };
+  
+          ws.onmessage = (event) => {
+              const d = JSON.parse(event.data);
+              if (d.error) {
+                  setStatus("오류: " + d.error);
+                  return;
+              }
+              wsLabels.push(`${d.day}일`);
+              wsValues.push(d.survival_rate);
+              timeChart.update();
+          };
+
+          ws.onclose = () => setStatus("시뮬레이션 완료");
+          ws.onerror = () => setStatus("WebSocket 오류 발생");
+      }
+  </script>
+  </body>   
+  </html>

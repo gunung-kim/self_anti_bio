@@ -10,9 +10,7 @@ async def get_mic_data(molecule_chembl_id:str)->dict:
         "limit" : 100,
         "format" : "json",
     }
-    print(f"요청 : {params}")
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.get(CHEMBL_URL,params=params)
         response.raise_for_status()
-        print(response.json())
         return response.json()

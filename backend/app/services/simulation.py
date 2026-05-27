@@ -16,7 +16,7 @@ async def get_simulation(request:SimulationRequest)->SimulationResponse:
     mic_value = [
         float(a["standard_value"])
         for a in activities
-        if a.get("standard_value")
+        if a.get("standard_value") and float(a["standard_value"]) < 1000
     ]
     if not mic_value:
         raise HTTPException(
