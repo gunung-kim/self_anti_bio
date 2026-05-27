@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import simulation
-from app.routers import websocket
+
+from app.routers import simulation, websocket
 
 app = FastAPI(
     title="Anti bio",
@@ -10,13 +10,14 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*","null"],
+    allow_origins=["*", "null"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(simulation.router)
 app.include_router(websocket.router)
+
 
 @app.get("/health")
 def health_check():
